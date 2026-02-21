@@ -13,6 +13,9 @@ public class OyunDurumu {
     private String aktifSahip = null;
     private int aktifMesafe = 0;
 
+    // ZAMAN SENKRONİZASYONU İÇİN EKLENEN HAYAT KURTARICI KOD
+    public long getSunucuZamani() { return System.currentTimeMillis(); }
+
     public String getOdaAdi() { return odaAdi; } public void setOdaAdi(String odaAdi) { this.odaAdi = odaAdi; }
     public String getKurucuAd() { return kurucuAd; } public void setKurucuAd(String kurucuAd) { this.kurucuAd = kurucuAd; }
     public Map<String, Oyuncu> getOyuncular() { return oyuncular; } public void setOyuncular(Map<String, Oyuncu> oyuncular) { this.oyuncular = oyuncular; }
