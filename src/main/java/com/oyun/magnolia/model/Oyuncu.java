@@ -1,14 +1,8 @@
 package com.oyun.magnolia.model;
-
 public class Oyuncu {
-    private String ad;
-    private String karakter;
-    private int skor = 0;
-    private int index = 0;
-    private long kilitBitis = 0;
-    private int hizliBasim = 0;
-    private long sonBasim = 0;
-
+    private String ad, karakter;
+    private int skor = 0, index = 0, hizliBasim = 0;
+    private long kilitBitis = 0, sonBasim = 0;
     public String getAd() { return ad; } public void setAd(String ad) { this.ad = ad; }
     public String getKarakter() { return karakter; } public void setKarakter(String karakter) { this.karakter = karakter; }
     public int getSkor() { return skor; } public void setSkor(int skor) { this.skor = skor; }

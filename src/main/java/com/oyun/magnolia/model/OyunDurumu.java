@@ -1,27 +1,12 @@
 package com.oyun.magnolia.model;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 public class OyunDurumu {
-    private String odaAdi;
-    private String kurucuAd;
+    private String odaAdi, kurucuAd, mesaj = "Lobi: Hazırlanıyor...", sonOlayTipi = "", sonOlayMesaji = "", gosterilenNesne = "🍨 Klasik", nesneEmoji = "🍨";
     private Map<String, Oyuncu> oyuncular = new ConcurrentHashMap<>();
-    private boolean oyunBasladi = false;
-    private boolean turBitti = false;
-    private String mesaj = "Lobi: Rakipler Bekleniyor...";
-
-    private String sonOlayTipi = "";
-    private String sonOlayMesaji = "";
+    private boolean oyunBasladi = false, turBitti = false, bombaAktif = false, altinAktif = false;
     private long olayZamani = 0;
-
-    private double magX = 0;
-    private double magY = 0;
-
-    private String gosterilenNesne = "🍨 Klasik Magnolia";
-    private String nesneEmoji = "🍨";
-    private boolean bombaAktif = false;
-    private boolean altinAktif = false;
-
+    private double magX = 0, magY = 0;
     public String getOdaAdi() { return odaAdi; } public void setOdaAdi(String odaAdi) { this.odaAdi = odaAdi; }
     public String getKurucuAd() { return kurucuAd; } public void setKurucuAd(String kurucuAd) { this.kurucuAd = kurucuAd; }
     public Map<String, Oyuncu> getOyuncular() { return oyuncular; } public void setOyuncular(Map<String, Oyuncu> oyuncular) { this.oyuncular = oyuncular; }
