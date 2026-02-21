@@ -1,12 +1,11 @@
 package com.oyun.magnolia.model;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 public class OyunDurumu {
     private String odaAdi, kurucuAd, mesaj = "Lobi: Rakipler Bekleniyor...", sonOlayTipi = "", sonOlayMesaji = "", gosterilenNesne = "Klasik", nesneEmoji = "🍨";
     private Map<String, Oyuncu> oyuncular = new ConcurrentHashMap<>();
     private boolean oyunBasladi = false, turBitti = false, bombaAktif = false, altinAktif = false;
-    private long olayZamani = 0, turBaslangicZamani = 0; // 1 Saniyelik mola için eklendi
+    private long olayZamani = 0, turBaslangicZamani = 0;
     private double magX = 0, magY = 0;
 
     public String getOdaAdi() { return odaAdi; } public void setOdaAdi(String odaAdi) { this.odaAdi = odaAdi; }
