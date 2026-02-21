@@ -23,34 +23,46 @@ public class OyunController {
         OyunDurumu oyun = odalar.get(oda);
 
         if ("BILGI_AL".equals(hamle.getIslem())) {
-            mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun);
-            return;
+            mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun); return;
+        }
+
+        if ("AYRIL".equals(hamle.getIslem())) {
+            oyun.getOyuncular().remove(hamle.getOyuncuAdi());
+            if (oyun.getKurucuAd() != null && oyun.getKurucuAd().equals(hamle.getOyuncuAdi()) && !oyun.getOyuncular().isEmpty()) {
+                oyun.setKurucuAd(oyun.getOyuncular().keySet().iterator().next());
+            }
+            oyun.setMesaj("🚪 " + hamle.getOyuncuAdi() + " ayrıldı.");
+            int index = 0; for (Oyuncu o : oyun.getOyuncular().values()) o.setIndex(index++);
+            mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun); return;
         }
 
         if ("KATIL".equals(hamle.getIslem())) {
             if (oyun.getOyuncular().containsKey(hamle.getOyuncuAdi())) {
                 oyun.setMesaj("🔄 " + hamle.getOyuncuAdi() + " oyuna döndü!");
-            } else if (!oyun.isOyunBasladi() && oyun.getOyuncular().size() < 10) {
-                boolean dolu = oyun.getOyuncular().values().stream().anyMatch(o -> o.getKarakter().equals(hamle.getKarakter()));
-                if (dolu) return;
-                Oyuncu yeni = new Oyuncu();
-                yeni.setAd(hamle.getOyuncuAdi()); yeni.setKarakter(hamle.getKarakter());
-                yeni.setIndex(oyun.getOyuncular().size());
-                if (oyun.getOyuncular().isEmpty()) oyun.setKurucuAd(yeni.getAd());
-                oyun.getOyuncular().put(yeni.getAd(), yeni);
-                oyun.setMesaj("👋 " + yeni.getAd() + " katıldı!");
+            } else if (!oyun.isOyunBasladi() || oyun.isTurBitti()) {
+                if (oyun.getOyuncular().size() < 10) {
+                    boolean dolu = oyun.getOyuncular().values().stream().anyMatch(o -> o.getKarakter().equals(hamle.getKarakter()));
+                    if (dolu) return;
+                    Oyuncu yeni = new Oyuncu();
+                    yeni.setAd(hamle.getOyuncuAdi()); yeni.setKarakter(hamle.getKarakter());
+                    yeni.setIndex(oyun.getOyuncular().size());
+                    if (oyun.getOyuncular().isEmpty()) oyun.setKurucuAd(yeni.getAd());
+                    oyun.getOyuncular().put(yeni.getAd(), yeni);
+                    oyun.setMesaj("👋 " + yeni.getAd() + " katıldı!");
+                }
             }
         }
         else if ("BASLAT".equals(hamle.getIslem())) {
             if (hamle.getOyuncuAdi().equals(oyun.getKurucuAd())) {
-                oyun.setOyunBasladi(true); yeniNesneOlustur(oyun, System.currentTimeMillis());
+                oyun.setOyunBasladi(true); oyun.setTurBitti(false);
+                yeniNesneOlustur(oyun, System.currentTimeMillis());
                 oyun.setMesaj("🚀 İLK 7 YAPAN KAZANIR!");
             }
         }
         else if ("TEKRAR".equals(hamle.getIslem())) {
             if (hamle.getOyuncuAdi().equals(oyun.getKurucuAd())) {
                 oyun.setTurBitti(false);
-                oyun.getOyuncular().values().forEach(o -> { o.setSkor(0); o.setKilitBitis(0); o.setHizliBasim(0); });
+                oyun.getOyuncular().values().forEach(o -> { o.setSkor(0); o.setKilitBitis(0); o.setHizliBasim(0); o.setDonduruldu(false); });
                 yeniNesneOlustur(oyun, System.currentTimeMillis());
                 oyun.setMesaj("♻️ YENİ MAÇ BAŞLADI!");
             }
@@ -59,49 +71,57 @@ public class OyunController {
             if (!oyun.isOyunBasladi() || oyun.isTurBitti()) return;
             long suAn = System.currentTimeMillis();
 
-            // YANLIŞLIKLA BOMBAYA BASMAMAK İÇİN HER TUR BAŞI 0.5 SN KORUMA (DOKUNULMAZLIK)
             if (suAn < oyun.getTurBaslangicZamani() + 500) return;
 
             Oyuncu ceken = oyun.getOyuncular().get(hamle.getOyuncuAdi());
             if (ceken == null || suAn < ceken.getKilitBitis()) return;
 
-            // CEZA SİSTEMİ GERİ DÖNDÜ: 300ms içinde 3 hızlı basışa 2 saniye kilit!
             if (suAn - ceken.getSonBasim() < 300) {
                 ceken.setHizliBasim(ceken.getHizliBasim() + 1);
                 if (ceken.getHizliBasim() >= 3) {
-                    ceken.setKilitBitis(suAn + 2000);
-                    ceken.setHizliBasim(0);
-                    oyun.setMesaj("🔥 " + ceken.getAd() + " MOTORU YAKTI! (2sn Ceza)");
-                    mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun);
-                    return;
+                    ceken.setKilitBitis(suAn + 2000); ceken.setDonduruldu(false); ceken.setHizliBasim(0);
+                    oyun.setMesaj("🔥 " + ceken.getAd() + " SPAM YAPTI! (2sn Ceza)");
+                    mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun); return;
                 }
             } else { ceken.setHizliBasim(1); }
             ceken.setSonBasim(suAn);
 
+            // BOMBA VE BUZ ANINDA ÇALIŞIR (İLK BASAN ALIR/PATLATIR)
             if (oyun.isBombaAktif()) {
                 ceken.setSkor(ceken.getSkor() - 2);
                 oyun.setSonOlayTipi("BOMBA"); oyun.setSonOlayMesaji("💥 GÜM! (-2 Puan)");
-                oyun.setOlayZamani(suAn);
                 yeniNesneOlustur(oyun, suAn);
-            } else {
-                int n = oyun.getOyuncular().size();
-                double aci = ceken.getIndex() * (2 * Math.PI / n);
-                oyun.setMagX(oyun.getMagX() + Math.cos(aci));
-                oyun.setMagY(oyun.getMagY() + Math.sin(aci));
-
-                // TAM 5 TIK KURALI
-                double mesafe = Math.sqrt(Math.pow(oyun.getMagX(), 2) + Math.pow(oyun.getMagY(), 2));
-                if (mesafe >= 4.99) {
-                    if(oyun.isAltinAktif()) {
-                        ceken.setSkor(ceken.getSkor() + 2);
-                        oyun.setSonOlayTipi("ALTIN"); oyun.setSonOlayMesaji("🌟 GİZLİ ALTIN! (+2)");
-                    } else {
-                        ceken.setSkor(ceken.getSkor() + 1);
-                        oyun.setSonOlayTipi("NORMAL"); oyun.setSonOlayMesaji("🍨 +1 PUAN!");
+            }
+            else if (oyun.isBuzAktif()) {
+                // BUZU İLK ALAN DİĞERLERİNİ 1.5 SN DONDURUR
+                for (Oyuncu o : oyun.getOyuncular().values()) {
+                    if (!o.getAd().equals(ceken.getAd())) {
+                        o.setKilitBitis(suAn + 1500);
+                        o.setDonduruldu(true);
                     }
-                    oyun.setOlayZamani(suAn);
+                }
+                oyun.setSonOlayTipi("BUZ"); oyun.setSonOlayMesaji("🧊 " + ceken.getAd().toUpperCase() + " HERKESİ DONDURDU!");
+                yeniNesneOlustur(oyun, suAn);
+            }
+            else {
+                // NORMAL MAGNOLIA: ÇUBUK (HALAT ÇEKME) SİSTEMİ
+                if (oyun.getAktifSahip() == null) {
+                    oyun.setAktifSahip(ceken.getAd()); oyun.setAktifMesafe(1);
+                } else if (oyun.getAktifSahip().equals(ceken.getAd())) {
+                    oyun.setAktifMesafe(oyun.getAktifMesafe() + 1);
+                } else {
+                    oyun.setAktifMesafe(oyun.getAktifMesafe() - 1);
+                    if (oyun.getAktifMesafe() == 0) oyun.setAktifSahip(null);
+                }
 
-                    // 7 PUANDA OYUN BİTER
+                // KAZANMA: 5 ADIM
+                if (oyun.getAktifMesafe() >= 5) {
+                    int artis = oyun.isAltinAktif() ? 2 : 1;
+                    ceken.setSkor(ceken.getSkor() + artis);
+                    if(oyun.isAltinAktif()) { oyun.setSonOlayTipi("ALTIN"); oyun.setSonOlayMesaji("🌟 GİZLİ ALTIN! (+2)"); }
+                    else { oyun.setSonOlayTipi("NORMAL"); oyun.setSonOlayMesaji("🍨 +1 PUAN!"); }
+
+                    oyun.setOlayZamani(suAn);
                     if (ceken.getSkor() >= 7) {
                         oyun.setTurBitti(true); oyun.setSonOlayTipi("KAZANDI");
                         oyun.setSonOlayMesaji("🏆 " + ceken.getAd().toUpperCase() + " ŞAMPİYON!");
@@ -115,13 +135,16 @@ public class OyunController {
     }
 
     private void yeniNesneOlustur(OyunDurumu oyun, long suAn) {
-        oyun.setMagX(0); oyun.setMagY(0);
-        oyun.setBombaAktif(false); oyun.setAltinAktif(false);
-        oyun.setTurBaslangicZamani(suAn); // Yeni nesne geldiğinde 0.5s mola başlar
+        oyun.setAktifSahip(null); oyun.setAktifMesafe(0);
+        oyun.setBombaAktif(false); oyun.setAltinAktif(false); oyun.setBuzAktif(false);
+        oyun.setTurBaslangicZamani(suAn); oyun.setOlayZamani(suAn);
 
         int s = rastgele.nextInt(100);
-        if (s < 20) { oyun.setBombaAktif(true); oyun.setNesneEmoji("💣"); }
-        else {
+        if (s < 15) {
+            oyun.setBombaAktif(true); oyun.setNesneEmoji("💣");
+        } else if (s < 30) {
+            oyun.setBuzAktif(true); oyun.setNesneEmoji("🧊");
+        } else {
             if (rastgele.nextInt(100) < 25) oyun.setAltinAktif(true);
             int t = rastgele.nextInt(3);
             if (t == 0) { oyun.setNesneEmoji("🍌"); } else if (t == 1) { oyun.setNesneEmoji("🍓"); } else { oyun.setNesneEmoji("🍫"); }

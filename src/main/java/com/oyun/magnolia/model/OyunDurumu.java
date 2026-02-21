@@ -4,9 +4,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OyunDurumu {
     private String odaAdi, kurucuAd, mesaj = "Lobi: Rakipler Bekleniyor...", sonOlayTipi = "", sonOlayMesaji = "", gosterilenNesne = "Klasik", nesneEmoji = "🍨";
     private Map<String, Oyuncu> oyuncular = new ConcurrentHashMap<>();
-    private boolean oyunBasladi = false, turBitti = false, bombaAktif = false, altinAktif = false;
+    private boolean oyunBasladi = false, turBitti = false, bombaAktif = false, altinAktif = false, buzAktif = false;
     private long olayZamani = 0, turBaslangicZamani = 0;
-    private double magX = 0, magY = 0;
+    private String aktifSahip = null;
+    private int aktifMesafe = 0;
 
     public String getOdaAdi() { return odaAdi; } public void setOdaAdi(String odaAdi) { this.odaAdi = odaAdi; }
     public String getKurucuAd() { return kurucuAd; } public void setKurucuAd(String kurucuAd) { this.kurucuAd = kurucuAd; }
@@ -18,10 +19,11 @@ public class OyunDurumu {
     public String getSonOlayMesaji() { return sonOlayMesaji; } public void setSonOlayMesaji(String sonOlayMesaji) { this.sonOlayMesaji = sonOlayMesaji; }
     public long getOlayZamani() { return olayZamani; } public void setOlayZamani(long olayZamani) { this.olayZamani = olayZamani; }
     public long getTurBaslangicZamani() { return turBaslangicZamani; } public void setTurBaslangicZamani(long turBaslangicZamani) { this.turBaslangicZamani = turBaslangicZamani; }
-    public double getMagX() { return magX; } public void setMagX(double magX) { this.magX = magX; }
-    public double getMagY() { return magY; } public void setMagY(double magY) { this.magY = magY; }
+    public String getAktifSahip() { return aktifSahip; } public void setAktifSahip(String aktifSahip) { this.aktifSahip = aktifSahip; }
+    public int getAktifMesafe() { return aktifMesafe; } public void setAktifMesafe(int aktifMesafe) { this.aktifMesafe = aktifMesafe; }
     public String getGosterilenNesne() { return gosterilenNesne; } public void setGosterilenNesne(String gosterilenNesne) { this.gosterilenNesne = gosterilenNesne; }
     public String getNesneEmoji() { return nesneEmoji; } public void setNesneEmoji(String nesneEmoji) { this.nesneEmoji = nesneEmoji; }
     public boolean isBombaAktif() { return bombaAktif; } public void setBombaAktif(boolean bombaAktif) { this.bombaAktif = bombaAktif; }
     public boolean isAltinAktif() { return altinAktif; } public void setAltinAktif(boolean altinAktif) { this.altinAktif = altinAktif; }
+    public boolean isBuzAktif() { return buzAktif; } public void setBuzAktif(boolean buzAktif) { this.buzAktif = buzAktif; }
 }
