@@ -26,7 +26,6 @@ public class OyunController {
         String oda = hamle.getOdaAdi();
         if (oda == null || oda.isEmpty()) return;
 
-        // GÜVENLİK 1: ODAYI SADECE "YENİ ODA KUR" DİYEN KİŞİ OLUŞTURABİLİR
         if ("KUR".equals(hamle.getIslem())) {
             odalar.putIfAbsent(oda, new OyunDurumu());
             odalar.get(oda).setOdaAdi(oda);
@@ -34,7 +33,6 @@ public class OyunController {
             return;
         }
 
-        // GÜVENLİK 2: OLMAYAN/KAPANMIŞ ODAYA GİRMEYE ÇALIŞANA HATA VER
         if (!odalar.containsKey(oda)) {
             OyunDurumu hata = new OyunDurumu();
             hata.setMesaj("HATA_ODA_YOK");
@@ -48,10 +46,20 @@ public class OyunController {
             mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun); return;
         }
 
+        // SOHBET SİSTEMİ
+        if ("SOHBET".equals(hamle.getIslem())) {
+            if (hamle.getMetin() != null && !hamle.getMetin().trim().isEmpty()) {
+                String sohbetMesaji = hamle.getKarakter() + " <b>" + hamle.getOyuncuAdi() + "</b>: " + hamle.getMetin().trim();
+                oyun.getSohbet().add(sohbetMesaji);
+                if (oyun.getSohbet().size() > 20) oyun.getSohbet().remove(0); // Sadece son 20 mesaj
+                mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun);
+            }
+            return;
+        }
+
         if ("AYRIL".equals(hamle.getIslem())) {
             oyun.getOyuncular().remove(hamle.getOyuncuAdi());
 
-            // ODA TEMİZLİĞİ: Odada kimse kalmadıysa odayı sil ve yok et
             if (oyun.getOyuncular().isEmpty()) {
                 odalar.remove(oda);
                 return;
@@ -62,6 +70,13 @@ public class OyunController {
             }
             oyun.setMesaj("🚪 " + hamle.getOyuncuAdi() + " ayrıldı.");
             int index = 0; for (Oyuncu o : oyun.getOyuncular().values()) o.setIndex(index++);
+
+            if (oyun.isOyunBasladi() && !oyun.isTurBitti() && oyun.getOyuncular().size() < 2) {
+                oyun.setTurBitti(true);
+                oyun.setSonOlayTipi("IPTAL");
+                oyun.setSonOlayMesaji("🛑 RAKİP KAÇTI!");
+                oyun.setOlayZamani(System.currentTimeMillis());
+            }
             mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun); return;
         }
 
@@ -83,17 +98,25 @@ public class OyunController {
         }
         else if ("BASLAT".equals(hamle.getIslem())) {
             if (hamle.getOyuncuAdi().equals(oyun.getKurucuAd())) {
-                oyun.setOyunBasladi(true); oyun.setTurBitti(false);
-                yeniNesneOlustur(oyun, System.currentTimeMillis(), oda);
-                oyun.setMesaj("🚀 İLK 7 YAPAN KAZANIR!");
+                if (oyun.getOyuncular().size() < 2) {
+                    oyun.setMesaj("❌ Başlamak için en az 2 kişi lazım!");
+                } else {
+                    oyun.setOyunBasladi(true); oyun.setTurBitti(false);
+                    yeniNesneOlustur(oyun, System.currentTimeMillis(), oda);
+                    oyun.setMesaj("🚀 İLK 7 YAPAN KAZANIR!");
+                }
             }
         }
         else if ("TEKRAR".equals(hamle.getIslem())) {
             if (hamle.getOyuncuAdi().equals(oyun.getKurucuAd())) {
-                oyun.setTurBitti(false);
-                oyun.getOyuncular().values().forEach(o -> { o.setSkor(0); o.setKilitBitis(0); o.setHizliBasim(0); o.setDonduruldu(false); });
-                yeniNesneOlustur(oyun, System.currentTimeMillis(), oda);
-                oyun.setMesaj("♻️ YENİ MAÇ BAŞLADI!");
+                if (oyun.getOyuncular().size() < 2) {
+                    oyun.setMesaj("❌ Başlamak için en az 2 kişi lazım!");
+                } else {
+                    oyun.setTurBitti(false);
+                    oyun.getOyuncular().values().forEach(o -> { o.setSkor(0); o.setKilitBitis(0); o.setHizliBasim(0); o.setDonduruldu(false); });
+                    yeniNesneOlustur(oyun, System.currentTimeMillis(), oda);
+                    oyun.setMesaj("♻️ YENİ MAÇ BAŞLADI!");
+                }
             }
         }
         else if ("CEK".equals(hamle.getIslem())) {
@@ -108,8 +131,9 @@ public class OyunController {
             if (suAn - ceken.getSonBasim() < 300) {
                 ceken.setHizliBasim(ceken.getHizliBasim() + 1);
                 if (ceken.getHizliBasim() >= 3) {
-                    ceken.setKilitBitis(suAn + 2000); ceken.setDonduruldu(false); ceken.setHizliBasim(0);
-                    oyun.setMesaj("🔥 " + ceken.getAd() + " SPAM YAPTI! (2sn Ceza)");
+                    ceken.setKilitBitis(suAn + 1000); // CEZA ARTIK 1 SANİYE
+                    ceken.setDonduruldu(false); ceken.setHizliBasim(0);
+                    oyun.setMesaj("🔥 " + ceken.getAd() + " SPAM YAPTI! (1sn Ceza)");
                     mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun); return;
                 }
             } else { ceken.setHizliBasim(1); }

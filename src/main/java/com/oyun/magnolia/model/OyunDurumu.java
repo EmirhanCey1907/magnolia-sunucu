@@ -1,9 +1,13 @@
 package com.oyun.magnolia.model;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 public class OyunDurumu {
     private String odaAdi, kurucuAd, mesaj = "Lobi: Rakipler Bekleniyor...", sonOlayTipi = "", sonOlayMesaji = "", gosterilenNesne = "Klasik", nesneEmoji = "🍨";
     private Map<String, Oyuncu> oyuncular = new ConcurrentHashMap<>();
+    private List<String> sohbet = new CopyOnWriteArrayList<>();
     private boolean oyunBasladi = false, turBitti = false, bombaAktif = false, altinAktif = false, buzAktif = false;
     private long olayZamani = 0, turBaslangicZamani = 0;
     private String aktifSahip = null;
@@ -12,6 +16,7 @@ public class OyunDurumu {
     public String getOdaAdi() { return odaAdi; } public void setOdaAdi(String odaAdi) { this.odaAdi = odaAdi; }
     public String getKurucuAd() { return kurucuAd; } public void setKurucuAd(String kurucuAd) { this.kurucuAd = kurucuAd; }
     public Map<String, Oyuncu> getOyuncular() { return oyuncular; } public void setOyuncular(Map<String, Oyuncu> oyuncular) { this.oyuncular = oyuncular; }
+    public List<String> getSohbet() { return sohbet; } public void setSohbet(List<String> sohbet) { this.sohbet = sohbet; }
     public boolean isOyunBasladi() { return oyunBasladi; } public void setOyunBasladi(boolean oyunBasladi) { this.oyunBasladi = oyunBasladi; }
     public boolean isTurBitti() { return turBitti; } public void setTurBitti(boolean turBitti) { this.turBitti = turBitti; }
     public String getMesaj() { return mesaj; } public void setMesaj(String mesaj) { this.mesaj = mesaj; }
