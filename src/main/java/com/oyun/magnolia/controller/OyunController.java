@@ -5,14 +5,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Controller
 public class OyunController {
     private Map<String, OyunDurumu> odalar = new ConcurrentHashMap<>();
     private Random rastgele = new Random();
+
+    // KİMSE BASMAZSA OYUNU DEVAM ETTİRECEK GİZLİ MOTOR
+    private ScheduledExecutorService zamanlayici = Executors.newScheduledThreadPool(5);
+
     @Autowired private SimpMessagingTemplate mesajSistemi;
 
     @MessageMapping("/hamle")
@@ -55,7 +63,7 @@ public class OyunController {
         else if ("BASLAT".equals(hamle.getIslem())) {
             if (hamle.getOyuncuAdi().equals(oyun.getKurucuAd())) {
                 oyun.setOyunBasladi(true); oyun.setTurBitti(false);
-                yeniNesneOlustur(oyun, System.currentTimeMillis());
+                yeniNesneOlustur(oyun, System.currentTimeMillis(), oda);
                 oyun.setMesaj("🚀 İLK 7 YAPAN KAZANIR!");
             }
         }
@@ -63,7 +71,7 @@ public class OyunController {
             if (hamle.getOyuncuAdi().equals(oyun.getKurucuAd())) {
                 oyun.setTurBitti(false);
                 oyun.getOyuncular().values().forEach(o -> { o.setSkor(0); o.setKilitBitis(0); o.setHizliBasim(0); o.setDonduruldu(false); });
-                yeniNesneOlustur(oyun, System.currentTimeMillis());
+                yeniNesneOlustur(oyun, System.currentTimeMillis(), oda);
                 oyun.setMesaj("♻️ YENİ MAÇ BAŞLADI!");
             }
         }
@@ -86,25 +94,21 @@ public class OyunController {
             } else { ceken.setHizliBasim(1); }
             ceken.setSonBasim(suAn);
 
-            // BOMBA VE BUZ ANINDA ÇALIŞIR (İLK BASAN ALIR/PATLATIR)
             if (oyun.isBombaAktif()) {
                 ceken.setSkor(ceken.getSkor() - 2);
                 oyun.setSonOlayTipi("BOMBA"); oyun.setSonOlayMesaji("💥 GÜM! (-2 Puan)");
-                yeniNesneOlustur(oyun, suAn);
+                yeniNesneOlustur(oyun, suAn, oda);
             }
             else if (oyun.isBuzAktif()) {
-                // BUZU İLK ALAN DİĞERLERİNİ 1.5 SN DONDURUR
                 for (Oyuncu o : oyun.getOyuncular().values()) {
                     if (!o.getAd().equals(ceken.getAd())) {
-                        o.setKilitBitis(suAn + 1500);
-                        o.setDonduruldu(true);
+                        o.setKilitBitis(suAn + 1500); o.setDonduruldu(true);
                     }
                 }
-                oyun.setSonOlayTipi("BUZ"); oyun.setSonOlayMesaji("🧊 " + ceken.getAd().toUpperCase() + " HERKESİ DONDURDU!");
-                yeniNesneOlustur(oyun, suAn);
+                oyun.setSonOlayTipi("BUZ"); oyun.setSonOlayMesaji("🧊 " + ceken.getAd().toUpperCase() + " DONDURDU!");
+                yeniNesneOlustur(oyun, suAn, oda);
             }
             else {
-                // NORMAL MAGNOLIA: ÇUBUK (HALAT ÇEKME) SİSTEMİ
                 if (oyun.getAktifSahip() == null) {
                     oyun.setAktifSahip(ceken.getAd()); oyun.setAktifMesafe(1);
                 } else if (oyun.getAktifSahip().equals(ceken.getAd())) {
@@ -114,7 +118,6 @@ public class OyunController {
                     if (oyun.getAktifMesafe() == 0) oyun.setAktifSahip(null);
                 }
 
-                // KAZANMA: 5 ADIM
                 if (oyun.getAktifMesafe() >= 5) {
                     int artis = oyun.isAltinAktif() ? 2 : 1;
                     ceken.setSkor(ceken.getSkor() + artis);
@@ -126,7 +129,7 @@ public class OyunController {
                         oyun.setTurBitti(true); oyun.setSonOlayTipi("KAZANDI");
                         oyun.setSonOlayMesaji("🏆 " + ceken.getAd().toUpperCase() + " ŞAMPİYON!");
                     } else {
-                        yeniNesneOlustur(oyun, suAn);
+                        yeniNesneOlustur(oyun, suAn, oda);
                     }
                 }
             }
@@ -134,7 +137,7 @@ public class OyunController {
         mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun);
     }
 
-    private void yeniNesneOlustur(OyunDurumu oyun, long suAn) {
+    private void yeniNesneOlustur(OyunDurumu oyun, long suAn, String oda) {
         oyun.setAktifSahip(null); oyun.setAktifMesafe(0);
         oyun.setBombaAktif(false); oyun.setAltinAktif(false); oyun.setBuzAktif(false);
         oyun.setTurBaslangicZamani(suAn); oyun.setOlayZamani(suAn);
@@ -148,6 +151,19 @@ public class OyunController {
             if (rastgele.nextInt(100) < 25) oyun.setAltinAktif(true);
             int t = rastgele.nextInt(3);
             if (t == 0) { oyun.setNesneEmoji("🍌"); } else if (t == 1) { oyun.setNesneEmoji("🍓"); } else { oyun.setNesneEmoji("🍫"); }
+        }
+
+        // 3.5 SANİYE KİLİT ÇÖZÜCÜ
+        if (oyun.isBombaAktif() || oyun.isBuzAktif()) {
+            zamanlayici.schedule(() -> {
+                if (oyun.getTurBaslangicZamani() == suAn && oyun.isOyunBasladi() && !oyun.isTurBitti()) {
+                    oyun.setSonOlayTipi("ZAMAN_DOLDU");
+                    oyun.setSonOlayMesaji("⏳ KİMSE DOKUNMADI!");
+                    oyun.setOlayZamani(System.currentTimeMillis());
+                    yeniNesneOlustur(oyun, System.currentTimeMillis(), oda);
+                    mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun);
+                }
+            }, 3500, TimeUnit.MILLISECONDS);
         }
     }
 }
