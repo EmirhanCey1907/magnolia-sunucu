@@ -17,8 +17,6 @@ import java.util.concurrent.TimeUnit;
 public class OyunController {
     private Map<String, OyunDurumu> odalar = new ConcurrentHashMap<>();
     private Random rastgele = new Random();
-
-    // KİMSE BASMAZSA OYUNU DEVAM ETTİRECEK GİZLİ MOTOR
     private ScheduledExecutorService zamanlayici = Executors.newScheduledThreadPool(5);
 
     @Autowired private SimpMessagingTemplate mesajSistemi;
@@ -27,7 +25,23 @@ public class OyunController {
     public void hamleYap(Hamle hamle) {
         String oda = hamle.getOdaAdi();
         if (oda == null || oda.isEmpty()) return;
-        odalar.putIfAbsent(oda, new OyunDurumu());
+
+        // GÜVENLİK 1: ODAYI SADECE "YENİ ODA KUR" DİYEN KİŞİ OLUŞTURABİLİR
+        if ("KUR".equals(hamle.getIslem())) {
+            odalar.putIfAbsent(oda, new OyunDurumu());
+            odalar.get(oda).setOdaAdi(oda);
+            mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, odalar.get(oda));
+            return;
+        }
+
+        // GÜVENLİK 2: OLMAYAN/KAPANMIŞ ODAYA GİRMEYE ÇALIŞANA HATA VER
+        if (!odalar.containsKey(oda)) {
+            OyunDurumu hata = new OyunDurumu();
+            hata.setMesaj("HATA_ODA_YOK");
+            mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, hata);
+            return;
+        }
+
         OyunDurumu oyun = odalar.get(oda);
 
         if ("BILGI_AL".equals(hamle.getIslem())) {
@@ -36,7 +50,14 @@ public class OyunController {
 
         if ("AYRIL".equals(hamle.getIslem())) {
             oyun.getOyuncular().remove(hamle.getOyuncuAdi());
-            if (oyun.getKurucuAd() != null && oyun.getKurucuAd().equals(hamle.getOyuncuAdi()) && !oyun.getOyuncular().isEmpty()) {
+
+            // ODA TEMİZLİĞİ: Odada kimse kalmadıysa odayı sil ve yok et
+            if (oyun.getOyuncular().isEmpty()) {
+                odalar.remove(oda);
+                return;
+            }
+
+            if (oyun.getKurucuAd() != null && oyun.getKurucuAd().equals(hamle.getOyuncuAdi())) {
                 oyun.setKurucuAd(oyun.getOyuncular().keySet().iterator().next());
             }
             oyun.setMesaj("🚪 " + hamle.getOyuncuAdi() + " ayrıldı.");
@@ -153,7 +174,6 @@ public class OyunController {
             if (t == 0) { oyun.setNesneEmoji("🍌"); } else if (t == 1) { oyun.setNesneEmoji("🍓"); } else { oyun.setNesneEmoji("🍫"); }
         }
 
-        // 3.5 SANİYE KİLİT ÇÖZÜCÜ
         if (oyun.isBombaAktif() || oyun.isBuzAktif()) {
             zamanlayici.schedule(() -> {
                 if (oyun.getTurBaslangicZamani() == suAn && oyun.isOyunBasladi() && !oyun.isTurBitti()) {
