@@ -13,7 +13,7 @@ public class OyunDurumu {
     private String aktifSahip = null;
     private int aktifMesafe = 0;
 
-    // ZAMAN SENKRONİZASYONU İÇİN EKLENEN HAYAT KURTARICI KOD
+    // EFSANEVİ SENKRONİZASYON (Sunucunun tam saati)
     public long getSunucuZamani() { return System.currentTimeMillis(); }
 
     public String getOdaAdi() { return odaAdi; } public void setOdaAdi(String odaAdi) { this.odaAdi = odaAdi; }

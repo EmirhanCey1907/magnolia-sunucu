@@ -46,12 +46,11 @@ public class OyunController {
             mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun); return;
         }
 
-        // SOHBET SİSTEMİ
         if ("SOHBET".equals(hamle.getIslem())) {
             if (hamle.getMetin() != null && !hamle.getMetin().trim().isEmpty()) {
                 String sohbetMesaji = hamle.getKarakter() + " <b>" + hamle.getOyuncuAdi() + "</b>: " + hamle.getMetin().trim();
                 oyun.getSohbet().add(sohbetMesaji);
-                if (oyun.getSohbet().size() > 20) oyun.getSohbet().remove(0); // Sadece son 20 mesaj
+                if (oyun.getSohbet().size() > 20) oyun.getSohbet().remove(0);
                 mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun);
             }
             return;
@@ -131,7 +130,7 @@ public class OyunController {
             if (suAn - ceken.getSonBasim() < 300) {
                 ceken.setHizliBasim(ceken.getHizliBasim() + 1);
                 if (ceken.getHizliBasim() >= 3) {
-                    ceken.setKilitBitis(suAn + 1000); // CEZA ARTIK 1 SANİYE
+                    ceken.setKilitBitis(suAn + 1000);
                     ceken.setDonduruldu(false); ceken.setHizliBasim(0);
                     oyun.setMesaj("🔥 " + ceken.getAd() + " SPAM YAPTI! (1sn Ceza)");
                     mesajSistemi.convertAndSend("/oda/guncelleme/" + oda, oyun); return;
